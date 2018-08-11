@@ -13,6 +13,12 @@ class PhotosViewController: UICollectionViewController, UICollectionViewDelegate
     let itemHeight = 200
     var images = [Int:UIImage]()
     
+    
+    // MARK: Low Memory Warning
+    override func didReceiveMemoryWarning() {
+        images.removeAll()
+    }
+    
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "PushDetailsViewController" {
             let detailsViewController = segue.destination as! DetailsViewController
@@ -33,14 +39,14 @@ class PhotosViewController: UICollectionViewController, UICollectionViewDelegate
         let url = URL(string: "https://picsum.photos/\(Int(itemWidth))/\(itemHeight)/?random")!
         
         if let image = images[(indexPath as NSIndexPath).row] {
-            cell.imageView.image = applyFiltersToImage(image)
+            cell.imageView.image = image
         } else {
             cell.activityIndicatorView.startAnimating()
             
             fetchImageAtURL(url) { (image) in
                 OperationQueue.main.addOperation({
                     cell.activityIndicatorView.stopAnimating()
-                    cell.imageView.image = self.applyFiltersToImage(image)
+                    cell.imageView.image = image
                     self.images[(indexPath as NSIndexPath).row] = image
                 })
             }
@@ -48,6 +54,7 @@ class PhotosViewController: UICollectionViewController, UICollectionViewDelegate
         
         return cell
     }
+    
     
     // MARK: UICollectionViewDataSource
     
@@ -68,27 +75,28 @@ extension PhotosViewController {
     func fetchImageAtURL(_ url: URL, success: @escaping ((_ image: UIImage) -> Void)) {
         URLSession.shared.dataTask(with: url, completionHandler: { (data, response, error) in
             if let data = data, let image = UIImage(data: data) {
-                success(image)
+                self.applyFiltersToImage(image, success: { (image) in
+                    success(image)
+                })
             }
         }) .resume()
     }
     
-    func applyFiltersToImage(_ image: UIImage) -> UIImage {
-        let context = CIContext(options: nil)
-        
-        if let currentFilter = CIFilter(name: "CIPhotoEffectMono") {
-            let beginImage = CIImage(image: image)
-            currentFilter.setValue(beginImage, forKey: kCIInputImageKey)
+    func applyFiltersToImage(_ image: UIImage, success: @escaping ((UIImage) -> Void)) {
+        OperationQueue().addOperation {
+            let context = CIContext(options: nil)
             
-            if let output = currentFilter.outputImage {
-                let cgimg = context.createCGImage(output, from: output.extent)
-                let processedImage = UIImage(cgImage: cgimg!)
-                return processedImage
+            if let currentFilter = CIFilter(name: "CIPhotoEffectMono") {
+                let beginImage = CIImage(image: image)
+                currentFilter.setValue(beginImage, forKey: kCIInputImageKey)
+                
+                if let output = currentFilter.outputImage {
+                    let cgimg = context.createCGImage(output, from: output.extent)
+                    let processedImage = UIImage(cgImage: cgimg!)
+                    success(processedImage)
+                }
             }
-            
         }
-        
-        return image
     }
 }
 
