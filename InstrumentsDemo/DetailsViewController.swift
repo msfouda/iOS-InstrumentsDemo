@@ -18,8 +18,10 @@ class DetailsViewController: UIViewController {
             imageView.image = image
         }
 
-        imageView.tapHandler = {
-            _ = self.navigationController?.popViewController(animated: true)
-        } as (() -> (Void))
+        imageView.tapHandler = { [weak self] in
+            if let strongSelf = self {
+                _ = strongSelf.navigationController?.popViewController(animated: true)
+            }
+        }
     }
 }
